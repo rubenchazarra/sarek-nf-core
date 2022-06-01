@@ -4138,9 +4138,9 @@ def extractFastqFromDir(pattern) {
             // the last name of the sampleDir is assumed to be a unique sample id
             sampleId = sampleDir.getFileName().toString()
 
-            for (path1 in file("${sampleDir}/**_R1_*.fastq.gz")) {
-                assert path1.getName().contains('_R1_')
-                path2 = file(path1.toString().replace('_R1_', '_R2_'))
+            for (path1 in file("${sampleDir}/**_1.fastq.gz")) {
+                assert path1.getName().contains('_1')
+                path2 = file(path1.toString().replace('_1', '_2'))
                 if (!path2.exists()) error "Path '${path2}' not found"
                 (flowcell, lane) = flowcellLaneFromFastq(path1)
                 String random = org.apache.commons.lang.RandomStringUtils.random(8, true, true) // random string to avoid duplicate names
@@ -4185,10 +4185,11 @@ def extractFastq(tsvFile) {
             def idRun      = row[4]
             def file1      = returnFile(row[5])
             def file2      = "null"
-            if (hasExtension(file1, "fastq.gz") || hasExtension(file1, "fq.gz") || hasExtension(file1, "fastq") || hasExtension(file1, "fq")) {
+            // To deal with paired data vs non paired
+            if (hasExtension(file1, "_1.fastq.gz") || hasExtension(file1, "_1.fq.gz") || hasExtension(file1, "_1.fastq") || hasExtension(file1, "_1.fq")) {
                 checkNumberOfItem(row, 7)
                 file2 = returnFile(row[6])
-                if (!hasExtension(file2, "fastq.gz") && !hasExtension(file2, "fq.gz")  && !hasExtension(file2, "fastq") && !hasExtension(file2, "fq")) exit 1, "File: ${file2} has the wrong extension. See --help for more information"
+                if (!hasExtension(file2, "_2.fastq.gz") && !hasExtension(file2, "_2.fq.gz")  && !hasExtension(file2, "_2.fastq") && !hasExtension(file2, "_2.fq")) exit 1, "File: ${file2} has the wrong extension. See --help for more information"
                 if (hasExtension(file1, "fastq") || hasExtension(file1, "fq") || hasExtension(file2, "fastq") || hasExtension(file2, "fq")) {
                     exit 1, "We do recommend to use gziped fastq file to help you reduce your data footprint."
                 }
