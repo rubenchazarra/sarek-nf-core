@@ -108,7 +108,7 @@ save_bam_mapped = params.skip_markduplicates ? true : params.save_bam_mapped ? t
 
 // If no input file specified, trying to get TSV files corresponding to step in the TSV directory
 // only for steps preparerecalibration, recalibrate, variantcalling and controlfreec
-if (!params.input && params.sentieon) {
+if (!params.input && params.sentieon) { // [R] If Sention (commercial software) enabled
     switch (step) {
         case 'mapping': break
         case 'recalibrate': tsvPath = "${params.outdir}/Preprocessing/TSV/sentieon_deduped.tsv"; break
@@ -139,7 +139,7 @@ if (!params.input && params.sentieon) {
 }
 
 inputSample = Channel.empty()
-if (tsvPath) {
+if (tsvPath) { // When TSV path provided
     tsvFile = file(tsvPath)
     switch (step) {
         case 'mapping': inputSample = extractFastq(tsvFile); break
@@ -478,7 +478,21 @@ process BuildBWAindexes {
     """
 }
 
-ch_bwa = params.bwa ? Channel.value(file(params.bwa)) : bwa_built
+////////////////
+
+// ch_bwa =  params.bwa ? Channel.value(file(params.bwa)) : bwa_built // Original
+
+println "Starting Evaluation if BWA channel is empty!"
+
+ch_bwa_2 =  params.bwa ? Channel.value(file(params.bwa)) : bwa_built 
+
+ch_bwa_2.into{ ch_bwa; ch_bwa_3}
+
+ch_bwa_3.ifEmpty("EMPTYYYYYYYYYYYYYYYYY CHANNEL") . view()
+
+println "Finishing Evaluation if BWA channel is empty!"
+
+////////////////
 
 process BuildDict {
     tag "${fasta}"
@@ -772,6 +786,7 @@ else inputPairReadsTrimGalore.close()
 // TODO: Use only one process for FastQC for FASTQ files and uBAM files
 // FASTQ and uBAM files are renamed based on the sample name
 
+// [R] TODO: Add condition to this step, we may not want to run it all
 process FastQCFQ {
     label 'FastQC'
     label 'cpus_2'
@@ -1038,7 +1053,8 @@ process MapReads {
 
     output:
         set idPatient, idSample, idRun, file("${idSample}_${idRun}.bam") into bamMapped
-        set idPatient, val("${idSample}_${idRun}"), file("${idSample}_${idRun}.bam") into bamMappedBamQC
+        set idPatient, val("${idSample}_${idRun}"), file("${idSample}.bam") into bamMappedBamQC
+        // set idPatient, val("${idSample}_${idRun}"), file("${idSample}_${idRun}.bam") into bamMappedBamQC
 
     when: !(params.sentieon)
 
@@ -1060,8 +1076,9 @@ process MapReads {
     ${convertToFastq}
     ${aligner} mem -K 100000000 -R \"${readGroup}\" ${extra} -t ${task.cpus} -M ${fasta} \
     ${input} | \
-    samtools sort --threads ${task.cpus} -m 2G - > ${idSample}_${idRun}.bam
+    samtools sort --threads ${task.cpus} -m 2G - > ${idSample}.bam
     """
+    //samtools sort --threads ${task.cpus} -m 2G - > ${idSample}_${idRun}.bam // [ORIGINAL]
 }
 
 bamMapped = bamMapped.dump(tag:'Mapped BAM')
@@ -4173,7 +4190,7 @@ def extractInfos(channel) {
 
 // Channeling the TSV file containing FASTQ or BAM
 // Format is: "subject gender status sample lane fastq1 fastq2"
-// or: "subject gender status sample lane bam"
+// or: "subject gender status sample lane bam" // [R] -> TODO: add a fastq file SUFFIX parameter in config. Now hard coded
 def extractFastq(tsvFile) {
     Channel.from(tsvFile)
         .splitCsv(sep: '\t')
